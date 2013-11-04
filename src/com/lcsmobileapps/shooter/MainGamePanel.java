@@ -9,15 +9,19 @@ package com.lcsmobileapps.shooter;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.util.Log;
+import android.view.Display;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import com.lcsmobileapps.shooter.buttons.ArrowButton;
 import com.lcsmobileapps.shooter.model.HarryAnimated;
 import com.lcsmobileapps.shooter.model.component.Speed;
 
@@ -32,7 +36,10 @@ public class MainGamePanel extends SurfaceView implements
 	private static final String TAG = MainGamePanel.class.getSimpleName();
 	private HarryAnimated harry;
 	private MainThread thread;
-	
+	private ArrowButton arrowLeft;
+	private ArrowButton arrowRight;
+	private int width;
+	private int height;
 	// the fps to be displayed
 	private String avgFps;
 	public void setAvgFps(String avgFps) {
@@ -44,13 +51,24 @@ public class MainGamePanel extends SurfaceView implements
 		// adding the callback (this) to the surface holder to intercept events
 		getHolder().addCallback(this);
 
-		// create Elaine and load bitmap
 		
+		
+		Activity activity = (Activity) context;
+		Display display = activity.getWindowManager().getDefaultDisplay();
+		Point size = new Point();
+		display.getSize(size);
+		width = size.x;
+		height = size.y;
+		
+		Bitmap leftBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.arrow_left);
+		Bitmap rightBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.arrow_right);
+		arrowLeft = new ArrowButton(leftBitmap,0, height - leftBitmap.getHeight());
+		arrowRight = new ArrowButton(rightBitmap,leftBitmap.getWidth()+ 30, height - rightBitmap.getHeight());
 		harry = new HarryAnimated(
 				BitmapFactory.decodeResource(getResources(), R.drawable.runnig_right2) 
-				, 100, 100	// initial position
-				, 60, 90	// width and height of sprite
-				, 3, 6);	// FPS and number of frames in the animation 
+				, width, height	// initial position
+				, 40, 122	// width and height of sprite
+				, 10, 6);	// FPS and number of frames in the animation 
 		
 		thread = new MainThread(getHolder(), this);
 		
@@ -98,16 +116,25 @@ public class MainGamePanel extends SurfaceView implements
             // delegating event handling to the droid
 
             harry.handleActionDown((int)event.getX(), (int)event.getY());
-
+            arrowLeft.handleActionDown((int)event.getX(), (int)event.getY());
+            arrowRight.handleActionDown((int)event.getX(), (int)event.getY());
              
 
+            if (arrowLeft.isTouched()) {
+            	harry.getSpeed().setxDirection(Speed.DIRECTION_LEFT);
+            	harry.setBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.runnig_left2));
+            }
+            if (arrowRight.isTouched()) {
+            	harry.getSpeed().setxDirection(Speed.DIRECTION_RIGHT);
+            	harry.setBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.runnig_right2));
+            }
             // check if in the lower part of the screen we exit
 
             if (event.getY() > getHeight() - 50) {
 
-                thread.setRunning(false);
-
-                ((Activity)getContext()).finish();
+//                thread.setRunning(false);
+//
+//                ((Activity)getContext()).finish();
 
             } else {
 
@@ -138,6 +165,7 @@ public class MainGamePanel extends SurfaceView implements
             	harry.setTouched(false);
 
             }
+            
 
         }
 
@@ -146,10 +174,12 @@ public class MainGamePanel extends SurfaceView implements
 
 	public void render(Canvas canvas) {
 		canvas.drawColor(Color.BLACK);
-		//elaine.draw(canvas);
+		
 		harry.draw(canvas);
 		// display fps
 		displayFps(canvas, avgFps);
+		arrowLeft.draw(canvas);
+		arrowRight.draw(canvas);
 	}
 
 	/**
@@ -161,14 +191,18 @@ public class MainGamePanel extends SurfaceView implements
 		//elaine.update(System.currentTimeMillis());
 		// check collision with right wall if heading right
 		if (harry.getSpeed().getxDirection() == Speed.DIRECTION_RIGHT
-				&& harry.getX() + harry.getBitmap().getWidth() / 2 >= getWidth()) {
+				&& harry.getX() + harry.getSpriteWidth() >= getWidth()) {
 			harry.getSpeed().toggleXDirection();
+			harry.setBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.standing2));			
 		}
 		// check collision with left wall if heading left
 		if (harry.getSpeed().getxDirection() == Speed.DIRECTION_LEFT
-				&& harry.getX() - harry.getBitmap().getWidth() / 2 <= 0) {
+				&& harry.getX() <= 0) {
 			harry.getSpeed().toggleXDirection();
+			harry.getSpeed().setxDirection(Speed.STANDING);
+			harry.setBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.standing2));
 		}
+		
 		// check collision with bottom wall if heading down
 		if (harry.getSpeed().getyDirection() == Speed.DIRECTION_DOWN
 				&& harry.getY() + harry.getBitmap().getHeight() / 2 >= getHeight()) {
